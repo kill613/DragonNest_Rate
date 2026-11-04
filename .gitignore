@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 独立打包用的 Python 环境（体积大，不入库）
+py312/
+
+# PyInstaller 产物
+app/build/
+app/dist/
+app/*.spec
+build/
+dist/
+
+# 便携版/打包产物
+release/
+*.zip
+
+# 临时脚本与日志
+app/probe_*.py
+app/verify_*.py
+app/check_data.py
+app/build_out.txt
+app/probe_out.txt
+*.log
+
+# 编辑器/系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
