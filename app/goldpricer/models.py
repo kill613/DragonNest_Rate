@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
+from . import config
+
 
 def fmt_unit_price(value: Optional[float]) -> str:
     """元/金，统一保留 5 位小数，便于横向比较。"""
@@ -79,6 +81,15 @@ class PlatformResult:
     stale: bool = False
     stale_reason: str = ""
     region: str = "cn"
+
+    def __post_init__(self):
+        # region 以 config.PLATFORMS 为唯一权威来源。
+        # 缓存加载、异常兜底等构造路径即使漏传 region，也不会被错误归入国服组。
+        meta = config.PLATFORMS.get(self.key)
+        if meta:
+            expected = meta.get("region", "cn")
+            if self.region != expected:
+                self.region = expected
 
     @property
     def best(self) -> Optional[Offer]:

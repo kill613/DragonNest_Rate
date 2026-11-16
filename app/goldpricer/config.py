@@ -2,7 +2,7 @@
 """应用配置：服务器、数据源地址与界面主题。"""
 
 APP_NAME = "龙之谷金币查价器"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.1"
 
 GAME_NAME = "龙之谷怀旧服"
 AREA_NAME = "怀旧大区"

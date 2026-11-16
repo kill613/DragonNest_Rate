@@ -46,6 +46,7 @@ def save_results(results: dict[str, PlatformResult]) -> None:
             "name": result.name,
             "color": result.color,
             "source_url": result.source_url,
+            "region": result.region,
             "fetched_at": result.fetched_at.isoformat() if result.fetched_at else None,
             "offers": [asdict(offer) for offer in result.offers],
         }
@@ -113,6 +114,7 @@ def load_results() -> dict[str, PlatformResult]:
             fetched_at=fetched_at,
             stale=True,
             stale_reason="上次数据",
+            region=item.get("region") or meta.get("region", "cn"),
         )
     return results
 

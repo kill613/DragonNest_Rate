@@ -1285,6 +1285,7 @@ class PriceApp:
                     source_url=meta["url"],
                     ok=False,
                     error=f"获取失败：{exc}",
+                    region=meta.get("region", "cn"),
                 )
         if not self._closed:
             try:
@@ -1310,6 +1311,7 @@ class PriceApp:
                         source_url=config.PLATFORMS[key]["url"],
                         ok=False,
                         error="没有返回结果",
+                        region=config.PLATFORMS[key].get("region", "cn"),
                     )
                 continue
             if old is not None and old.offers and not new.offers:
