@@ -27,7 +27,7 @@ if str(APP_DIR) not in sys.path:
     sys.path.insert(0, str(APP_DIR))
 
 from goldpricer import config, storage  # noqa: E402
-from goldpricer.fetchers import fetch_all  # noqa: E402
+from goldpricer.fetchers import fetch_all, throttle_status  # noqa: E402
 from goldpricer.history import HistoryStore  # noqa: E402
 from goldpricer.models import (  # noqa: E402
     PlatformResult,
@@ -405,6 +405,30 @@ class AppState:
         cards = [
             self._card_block(key, gold, best_keys) for key in config.PLATFORMS
         ]
+
+        # 处于退避冷却的平台：在卡片和状态栏上明确提示剩余等待时间，
+        # 避免用户以为“刷新没反应”。
+        throttle = throttle_status()
+        paused_names: list[str] = []
+        for card in cards:
+            info = throttle.get(card["key"])
+            if not info or not info["reason"] or info["remain"] <= 0:
+                continue
+            mins = max(1, int(round(info["remain"] / 60.0)))
+            hint = f"{info['reason']}，约 {mins} 分钟后自动重试"
+            if card.get("ok") is False:
+                card["note"] = hint
+            else:
+                base = card.get("note") or ""
+                card["note"] = f"{base} · {hint}" if base else hint
+            card["note_color"] = config.ORANGE
+            card["pause_remain"] = int(info["remain"])
+            paused_names.append(config.PLATFORMS[card["key"]].get("short") or card["name"])
+
+        if paused_names:
+            status_text = f"{status_text} · {'/'.join(paused_names)} 冷却中"
+            if status_color in (config.MUTED, config.MUTED_DARK):
+                status_color = config.ORANGE
 
         # 走势区间文案 + 走势点（与桌面版 set_trend 一致）
         for card in cards:

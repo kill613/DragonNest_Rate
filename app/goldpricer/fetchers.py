@@ -46,6 +46,73 @@ class FetchError(Exception):
     """可展示给用户的抓取错误。"""
 
 
+class SkipFetch(Exception):
+    """平台处于节流或退避冷却期，本轮不抓取，直接沿用上次数据。"""
+
+    def __init__(self, key: str, remain: float, reason: str):
+        self.key = key
+        self.remain = remain
+        self.reason = reason
+        super().__init__(reason)
+
+
+# 各平台的抓取节奏控制：成功后有最小间隔，失败后按指数退避，
+# 避免把出口 IP 打到被对方 WAF 要求人机验证的程度。
+_THROTTLE_LOCK = threading.Lock()
+_THROTTLE: dict[str, dict] = {}
+
+
+def _throttle_state(key: str) -> dict:
+    with _THROTTLE_LOCK:
+        state = _THROTTLE.get(key)
+        if state is None:
+            state = {"next": 0.0, "streak": 0, "reason": ""}
+            _THROTTLE[key] = state
+        return state
+
+
+def throttle_status() -> dict[str, dict]:
+    """返回各平台剩余等待时间，供界面提示“N 分钟后重试”。"""
+    now = time.monotonic()
+    out: dict[str, dict] = {}
+    with _THROTTLE_LOCK:
+        items = list(_THROTTLE.items())
+    for key, state in items:
+        remain = state["next"] - now
+        out[key] = {
+            "remain": max(0.0, remain),
+            "reason": state["reason"] if remain > 0 else "",
+            "streak": state["streak"],
+        }
+    return out
+
+
+def _throttle_guard(fetcher) -> None:
+    state = _throttle_state(fetcher.key)
+    now = time.monotonic()
+    if state["next"] > now:
+        raise SkipFetch(fetcher.key, state["next"] - now, state["reason"] or "节流中")
+
+
+def _throttle_success(fetcher) -> None:
+    state = _throttle_state(fetcher.key)
+    state["streak"] = 0
+    state["reason"] = ""
+    state["next"] = time.monotonic() + float(fetcher.min_interval)
+
+
+def _throttle_failure(fetcher) -> None:
+    state = _throttle_state(fetcher.key)
+    state["streak"] += 1
+    base = float(fetcher.cooldown_base)
+    if base <= 0:
+        return
+    cap = float(fetcher.cooldown_max) or base
+    cool = min(base * (2 ** (state["streak"] - 1)), cap)
+    state["reason"] = "触发人机验证，暂停抓取"
+    state["next"] = time.monotonic() + cool
+
+
 def _to_float(value, default: Optional[float] = None) -> Optional[float]:
     if value is None:
         return default
@@ -140,6 +207,12 @@ class BaseFetcher:
     color = ""
     source_url = ""
 
+    # 抓取节奏：成功后最小间隔 / 首次失败冷却 / 冷却上限 / 单次抓取的重试轮数
+    min_interval = 0.0
+    cooldown_base = 0.0
+    cooldown_max = 0.0
+    max_attempts = 1
+
     @property
     def region(self) -> str:
         return config.PLATFORMS.get(self.key, {}).get("region", "cn")
@@ -170,6 +243,12 @@ class Dd373Fetcher(BaseFetcher):
     name = config.PLATFORMS["dd373"]["name"]
     color = config.PLATFORMS["dd373"]["color"]
     source_url = config.DD373_URL
+    # DD373 有阿里云 WAF，请求密度过高就会要求滑动验证（纯 HTTP 过不去），
+    # 所以它走得比其他平台慢很多，失败后还会指数退避。
+    min_interval = float(config.DD373_MIN_INTERVAL)
+    cooldown_base = float(config.DD373_COOLDOWN_BASE)
+    cooldown_max = float(config.DD373_COOLDOWN_MAX)
+    max_attempts = 1
 
     def __init__(self):
         self._session = HttpSession()
@@ -184,13 +263,18 @@ class Dd373Fetcher(BaseFetcher):
         if self._warmed:
             return
         # 先访问首页取得 WAF 会话 Cookie，再访问商品列表页。
-        self._session.get(config.DD373_HOME, referer=None)
+        home = self._session.get(config.DD373_HOME, referer=None)
+        # 首页已经被要求人机验证时，再请求列表页只会加深“机器行为”判定，
+        # 这里立刻放弃，把请求数压到最低。
+        if any(marker in home for marker in CHALLENGE_MARKERS):
+            raise FetchError("DD373 触发人机验证")
         self._warmed = True
 
     def _fetch_offers(self) -> list[Offer]:
         with self._lock:
             last_error: Optional[Exception] = None
-            for attempt in range(3):
+            rounds = max(1, int(self.max_attempts))
+            for attempt in range(rounds):
                 try:
                     self._warm()
                     page = self._session.get(self.source_url, referer=config.DD373_HOME)
@@ -200,16 +284,16 @@ class Dd373Fetcher(BaseFetcher):
                 except FetchError as exc:
                     last_error = exc
                     self._reset()
-                    if attempt < 2:
+                    if attempt < rounds - 1:
                         time.sleep(1.2 + attempt)
                 except Exception as exc:  # noqa: BLE001 - 统一转换为用户可读错误
                     last_error = exc
                     self._reset()
-                    if attempt < 2:
+                    if attempt < rounds - 1:
                         time.sleep(0.8)
             if isinstance(last_error, FetchError):
                 if "人机验证" in str(last_error):
-                    raise FetchError("DD373 需要人机验证，请稍后重试")
+                    raise FetchError("需要人机验证，已暂停抓取")
                 raise last_error
             raise FetchError(f"DD373 获取失败：{last_error}")
 
@@ -610,12 +694,19 @@ _FETCHERS: dict[str, BaseFetcher] = {
 
 def fetch_one(key: str) -> PlatformResult:
     fetcher = _FETCHERS[key]
+    _throttle_guard(fetcher)  # 处于节流/退避期时抛 SkipFetch
     try:
-        return fetcher.fetch()
+        result = fetcher.fetch()
+    except SkipFetch:
+        raise
     except FetchError:
+        _throttle_failure(fetcher)
         raise
     except Exception as exc:  # noqa: BLE001
+        _throttle_failure(fetcher)
         raise FetchError(f"{fetcher.name} 获取失败：{exc}") from exc
+    _throttle_success(fetcher)
+    return result
 
 
 def error_result(key: str, message: str) -> PlatformResult:
@@ -634,13 +725,18 @@ def error_result(key: str, message: str) -> PlatformResult:
 
 
 def fetch_all() -> dict[str, PlatformResult]:
-    """并行抓取全部平台；单个平台失败不影响其他平台。"""
+    """并行抓取全部平台；单个平台失败不影响其他平台。
+
+    处于节流或退避冷却期的平台不会出现在返回值里，调用方沿用上次数据。
+    """
     results: dict[str, PlatformResult] = {}
     with ThreadPoolExecutor(max_workers=len(_FETCHERS)) as pool:
         futures = {key: pool.submit(fetch_one, key) for key in _FETCHERS}
         for key, future in futures.items():
             try:
                 results[key] = future.result()
+            except SkipFetch:
+                continue
             except FetchError as exc:
                 results[key] = error_result(key, str(exc))
             except Exception as exc:  # noqa: BLE001
