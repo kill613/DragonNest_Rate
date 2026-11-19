@@ -63,7 +63,7 @@ unzip -o /tmp/dragonnest-web-docker.zip
 ```sh
 cd /root/dragonnest
 sh deploy-openwrt.sh              # 默认 8090
-# PORT=8090 sh deploy-openwrt.sh  # 换端口
+# PORT=8099 sh deploy-openwrt.sh  # 换宿主机端口（容器内固定 8090）
 ```
 
 或者手工两步：
