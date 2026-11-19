@@ -41,7 +41,7 @@ from goldpricer.models import (  # noqa: E402
 )
 
 HOST = os.getenv("GOLDPRICER_HOST", "0.0.0.0")
-PORT = int(os.getenv("GOLDPRICER_PORT", "8080"))
+PORT = int(os.getenv("GOLDPRICER_PORT", "8090"))
 AUTO_SECONDS = int(
     os.getenv("GOLDPRICER_AUTO_SECONDS", str(config.AUTO_REFRESH_MS // 1000))
 )

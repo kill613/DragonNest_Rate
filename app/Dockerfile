@@ -10,7 +10,7 @@ ENV PYTHONUNBUFFERED=1 \
     TZ=Asia/Shanghai \
     GOLDPRICER_DATA_DIR=/data \
     GOLDPRICER_HOST=0.0.0.0 \
-    GOLDPRICER_PORT=8080 \
+    GOLDPRICER_PORT=8090 \
     GOLDPRICER_AUTO_SECONDS=60
 
 # 时区数据：容器默认 UTC，不装 tzdata 的话页面上「抓取于 11:58:04」会变成 UTC 时间
@@ -39,11 +39,11 @@ RUN useradd -u 1000 -m appuser \
 USER appuser
 
 VOLUME ["/data"]
-EXPOSE 8080
+EXPOSE 8090
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=25s --retries=3 \
   CMD python -c "import urllib.request,sys; \
-r=urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=4); \
+r=urllib.request.urlopen('http://127.0.0.1:8090/healthz',timeout=4); \
 sys.exit(0 if r.status==200 else 1)"
 
 CMD ["python", "-u", "web/server.py"]

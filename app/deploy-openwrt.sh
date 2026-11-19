@@ -2,8 +2,8 @@
 # 龙之谷金币查价器 · OpenWrt 一键构建并启动
 #
 # 用法：
-#   sh deploy-openwrt.sh              # 默认 8080 端口
-#   PORT=8090 sh deploy-openwrt.sh    # 换端口
+#   sh deploy-openwrt.sh              # 默认 8090 端口
+#   PORT=8099 sh deploy-openwrt.sh    # 换宿主机端口（容器内固定 8090）
 #   PIP_INDEX_URL= sh deploy-openwrt.sh   # 用官方 PyPI 源
 #
 # 脚本可重复执行：会自动停掉旧容器、重新构建、再启动，数据目录不动。
@@ -13,7 +13,7 @@ set -e
 APP_DIR=$(cd "$(dirname "$0")" && pwd)
 NAME=goldpricer
 IMAGE=dragonnest-goldpricer:1.4.0
-PORT=${PORT:-8080}
+PORT=${PORT:-8090}
 DATA=${DATA:-$APP_DIR/data}
 
 # 国内网络默认走清华源，拉 PyPI 快很多
@@ -38,7 +38,7 @@ docker rm -f "$NAME" >/dev/null 2>&1 || true
 docker run -d \
   --name "$NAME" \
   --restart unless-stopped \
-  -p "${PORT}:8080" \
+  -p "${PORT}:8090" \
   -e TZ=Asia/Shanghai \
   -e GOLDPRICER_AUTO_SECONDS=60 \
   -v "${DATA}:/data" \
@@ -48,7 +48,7 @@ echo "==> 等待服务就绪"
 i=0
 while [ $i -lt 30 ]; do
   if docker exec "$NAME" python -c \
-    "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/healthz',timeout=3)" 2>/dev/null; then
+    "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/healthz',timeout=3)" 2>/dev/null; then
     break
   fi
   i=$((i + 1))

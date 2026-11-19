@@ -5,7 +5,7 @@
 
 - 镜像基础：`python:3.12-slim`，唯一第三方依赖 `lxml`（有预编译 wheel，不需要现场编译）
 - 容器内固定数据目录 `/data`（挂载卷，存上次报价 + 7 天走势历史）
-- 服务端口 `8080`（避开 LuCI 占用的 80）
+- 服务端口 `8090`（避开 LuCI 占用的 80）
 - 时区 `Asia/Shanghai`（否则页面上的「抓取于 xx:xx」会是 UTC 时间）
 - 抓取周期 60 秒，服务端后台跑，浏览器关掉也继续盯盘
 
@@ -62,7 +62,7 @@ unzip -o /tmp/dragonnest-web-docker.zip
 
 ```sh
 cd /root/dragonnest
-sh deploy-openwrt.sh              # 默认 8080
+sh deploy-openwrt.sh              # 默认 8090
 # PORT=8090 sh deploy-openwrt.sh  # 换端口
 ```
 
@@ -79,7 +79,7 @@ docker build \
 docker run -d \
   --name goldpricer \
   --restart unless-stopped \
-  -p 8080:8080 \
+  -p 8090:8090 \
   -e TZ=Asia/Shanghai \
   -e GOLDPRICER_AUTO_SECONDS=60 \
   -v /root/dragonnest/data:/data \
@@ -119,10 +119,10 @@ ssh root@192.168.1.1 "docker load -i /tmp/goldpricer-arm64.tar && rm /tmp/goldpr
 浏览器打开：
 
 ```
-http://<主路由 IP>:8080
+http://<主路由 IP>:8090
 ```
 
-例如 `http://192.168.1.1:8080`。手机、平板、其他电脑同一局域网都能开。
+例如 `http://192.168.1.1:8090`。手机、平板、其他电脑同一局域网都能开。
 
 首次打开时会先显示缓存（没有缓存就是「等待获取报价」），约 2 秒后开始抓取，
 抓完自动刷新，之后每 60 秒更新一次。
@@ -140,7 +140,7 @@ docker stop goldpricer && docker rm goldpricer   # 删除容器（数据在 /dat
 cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.4.0 . \
   && docker stop goldpricer && docker rm goldpricer \
   && docker run -d --name goldpricer --restart unless-stopped \
-     -p 8080:8080 -v /root/dragonnest/data:/data \
+     -p 8090:8090 -v /root/dragonnest/data:/data \
      dragonnest-goldpricer:1.4.0
 ```
 
@@ -161,12 +161,12 @@ cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.4.0 . \
 
 | 变量 | 默认 | 说明 |
 | --- | --- | --- |
-| `GOLDPRICER_PORT` | `8080` | 容器内监听端口，改这里要同步改 `-p` 的容器侧端口 |
+| `GOLDPRICER_PORT` | `8090` | 容器内监听端口，改这里要同步改 `-p` 的容器侧端口 |
 | `GOLDPRICER_AUTO_SECONDS` | `60` | 后台抓取周期（秒），页面底部文案会跟着变 |
 | `GOLDPRICER_DATA_DIR` | `/data` | 数据目录，改了要同步改卷挂载 |
 | `TZ` | `Asia/Shanghai` | 容器时区 |
 
-端口被占用时只改宿主机侧即可，例如 `-p 8090:8080`，访问就变成 `http://192.168.1.1:8090`。
+端口被占用时只改宿主机侧即可，例如 `-p 8095:8090`，访问就变成 `http://192.168.1.1:8090`。
 
 ---
 
@@ -175,7 +175,7 @@ cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.4.0 . \
 **页面打不开**
 1. `docker ps` 看容器是否在跑、状态是否 `healthy`
 2. `docker logs goldpricer` 看有没有 `web server listening`
-3. 路由器防火墙是否放行 8080（LuCI → 网络 → 防火墙 → 通信规则）
+3. 路由器防火墙是否放行 8090（LuCI → 网络 → 防火墙 → 通信规则）
 
 **页面能开，但全部平台「获取失败」**
 容器访问不了外网。先在容器里验证：
@@ -186,7 +186,7 @@ docker exec goldpricer python -c "import urllib.request;print(urllib.request.url
 
 不通通常是 OpenWrt 上 docker 的 DNS/转发问题，可以：
 - 给 docker 配 DNS：`/etc/docker/daemon.json` 写 `{"dns":["223.5.5.5","119.29.29.29"]}` 后重启 dockerd
-- 或临时改用 host 网络：`docker run ... --network host dragonnest-goldpricer:1.4.0`（此时 `-p` 可不写，直接用 8080）
+- 或临时改用 host 网络：`docker run ... --network host dragonnest-goldpricer:1.4.0`（此时 `-p` 可不写，直接用 8090）
 
 **时间显示不对**
 确认启动参数里有 `-e TZ=Asia/Shanghai`。

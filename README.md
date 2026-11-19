@@ -1,4 +1,4 @@
-﻿# 龙之谷金币查价器
+# 龙之谷金币查价器
 
 一个给《龙之谷怀旧服》玩家用的比价工具：一键抓取 **DD373（怀旧服神圣天堂）、DD373（港澳台服 LIVE）、7881（怀旧服）、7881（港澳台服 LIVE）、G买卖** 五个平台当前「收货商家」的报价，按到手单价从高到低展示，并给出「卖到哪个平台更划算」的结论。
 
@@ -61,12 +61,12 @@ docker build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple 
   -t dragonnest-goldpricer:1.4.0 .
 
 docker run -d --name goldpricer --restart unless-stopped \
-  -p 8080:8080 -e TZ=Asia/Shanghai \
+  -p 8090:8090 -e TZ=Asia/Shanghai \
   -v /root/dragonnest/data:/data \
   dragonnest-goldpricer:1.4.0
 ```
 
-浏览器访问 `http://<主路由 IP>:8080`。
+浏览器访问 `http://<主路由 IP>:8090`。
 
 完整步骤（含离线导入镜像、数据迁移、排查）见 [DOCKER部署说明.md](DOCKER部署说明.md)；
 现成的部署包在 `release/dragonnest-web-docker.zip`。
