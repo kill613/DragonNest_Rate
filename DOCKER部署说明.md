@@ -31,11 +31,11 @@ dragonnest/
 
 ```powershell
 # 在 Windows PowerShell 里执行（把 IP 换成你主路由地址）
-scp -r "D:\Other\龙之谷金币查价器\app\Dockerfile" `
-       "D:\Other\龙之谷金币查价器\app\requirements.txt" `
-       "D:\Other\龙之谷金币查价器\app\.dockerignore" `
-       "D:\Other\龙之谷金币查价器\app\docker-compose.yml" `
-       root@192.168.1.1:/root/dragonnest/
+scp "D:\Other\龙之谷金币查价器\app\Dockerfile" `
+    "D:\Other\龙之谷金币查价器\app\.dockerignore" `
+    "D:\Other\龙之谷金币查价器\app\docker-compose.yml" `
+    "D:\Other\龙之谷金币查价器\app\deploy-openwrt.sh" `
+    root@192.168.1.1:/root/dragonnest/
 
 scp -r "D:\Other\龙之谷金币查价器\app\goldpricer" "D:\Other\龙之谷金币查价器\app\web" `
        root@192.168.1.1:/root/dragonnest/
@@ -57,6 +57,16 @@ unzip -o /tmp/dragonnest-web-docker.zip
 ### 方案 A：路由器上直接构建（推荐）
 
 基础镜像会按路由器自身 CPU 架构自动拉取（arm64 / amd64 都不用管）。
+
+**最省事：跑附带的脚本**（构建 + 重建容器 + 等就绪 + 打印访问地址，可重复执行）：
+
+```sh
+cd /root/dragonnest
+sh deploy-openwrt.sh              # 默认 8080
+# PORT=8090 sh deploy-openwrt.sh  # 换端口
+```
+
+或者手工两步：
 
 ```sh
 cd /root/dragonnest
