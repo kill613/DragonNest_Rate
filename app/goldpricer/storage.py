@@ -22,6 +22,16 @@ CACHE_VERSION = 1
 
 
 def _base_dir() -> Path:
+    # 显式指定数据目录（Docker / 服务端部署用，例如 GOLDPRICER_DATA_DIR=/data），
+    # 桌面版不设置该变量时行为完全不变，仍走 LOCALAPPDATA。
+    custom = os.getenv("GOLDPRICER_DATA_DIR")
+    if custom:
+        base = Path(custom).expanduser()
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+            return base
+        except OSError:
+            pass
     base = Path(os.getenv("LOCALAPPDATA") or tempfile.gettempdir()) / "DragonNestGoldPrice"
     try:
         base.mkdir(parents=True, exist_ok=True)

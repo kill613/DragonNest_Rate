@@ -1,0 +1,21 @@
+# 龙之谷金币查价器 · Docker 版
+#
+# OpenWrt 上如果没有 compose 插件，直接看「部署说明.md」里的 docker run 命令。
+services:
+  goldpricer:
+    build: .
+    image: dragonnest-goldpricer:1.4.0
+    container_name: goldpricer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      TZ: Asia/Shanghai
+      GOLDPRICER_AUTO_SECONDS: "60"
+    volumes:
+      - ./data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "2m"
+        max-file: "2"

@@ -32,3 +32,8 @@ app/probe_out.txt
 .idea/
 .DS_Store
 Thumbs.db
+
+# Web 版本地运行产物
+app/web/_server.log
+app/web/_server.err
+app/web/_shot.png

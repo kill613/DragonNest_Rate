@@ -1,0 +1,21 @@
+# 桌面版（tkinter）专用，容器里没有图形界面，全部排除
+main.py
+build.py
+build_onedir.py
+make_icon.py
+verify_fetch.py
+check_data.py
+
+# goldpricer 里的桌面绘制模块
+goldpricer/ui.py
+goldpricer/chart.py
+
+# 构建产物 / 运行产物
+__pycache__/
+*.pyc
+*.spec
+build/
+dist/
+_server.log
+_server.err
+_shot.png

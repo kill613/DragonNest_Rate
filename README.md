@@ -1,6 +1,11 @@
 ﻿# 龙之谷金币查价器
 
-一个给《龙之谷怀旧服》玩家用的 Windows 桌面小工具：一键抓取 **DD373（怀旧服神圣天堂）、DD373（港澳台服 LIVE）、7881、G买卖** 四个平台当前「收货商家」的报价，按到手单价从高到低展示，并给出「卖到哪个平台更划算」的结论。
+一个给《龙之谷怀旧服》玩家用的比价工具：一键抓取 **DD373（怀旧服神圣天堂）、DD373（港澳台服 LIVE）、7881（怀旧服）、7881（港澳台服 LIVE）、G买卖** 五个平台当前「收货商家」的报价，按到手单价从高到低展示，并给出「卖到哪个平台更划算」的结论。
+
+有两个形态：
+
+- **Windows 桌面版**（Tkinter，当前主力版本）
+- **Docker / 网页版**（跑在路由器或 NAS 的容器里，局域网浏览器访问，界面与桌面版一致）
 
 当前固定区服：**怀旧大区 / 神圣天堂 / 游戏币**，以及 **港澳台服 / LIVE / 游戏币**。
 
@@ -42,6 +47,27 @@
 单文件版首次启动需要解压 3–8 秒，之后会快一些。
 
 > 建议解压到较短路径（例如 `D:\龙之谷金币查价器`）。路径过深时 Windows 可能无法加载便携版的依赖文件。
+
+## Docker / 网页版（OpenWrt 路由器、NAS）
+
+容器跑在路由器上，局域网用浏览器访问，界面与桌面版是同一套深色金色样式；抓取在服务端后台按 60 秒周期跑，浏览器关掉也继续盯盘，手机/平板/其他电脑同时看同一份数据。
+
+```sh
+# 把 app/ 下的 Dockerfile、goldpricer/、web/ 传到路由器后
+cd /root/dragonnest
+docker build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
+  -t dragonnest-goldpricer:1.4.0 .
+
+docker run -d --name goldpricer --restart unless-stopped \
+  -p 8080:8080 -e TZ=Asia/Shanghai \
+  -v /root/dragonnest/data:/data \
+  dragonnest-goldpricer:1.4.0
+```
+
+浏览器访问 `http://<主路由 IP>:8080`。
+
+完整步骤（含离线导入镜像、数据迁移、排查）见 [DOCKER部署说明.md](DOCKER部署说明.md)；
+现成的部署包在 `release/dragonnest-web-docker.zip`。
 
 ## 价格怎么看
 
@@ -98,17 +124,32 @@ python build.py          # 单文件版：dist/龙之谷金币查价器.exe
 
 ```
 app/
-├── main.py                 # 入口
+├── main.py                 # 桌面版入口
 ├── goldpricer/
 │   ├── config.py           # 区服、URL、主题
 │   ├── models.py           # 数据模型与格式化
-│   ├── fetchers.py         # 三个平台的抓取/解析
-│   └── ui.py               # Tkinter 界面
+│   ├── fetchers.py         # 五个平台的抓取/解析
+│   ├── storage.py          # 上次报价缓存
+│   ├── history.py          # 7 日价格历史
+│   ├── chart.py            # 桌面版走势图
+│   └── ui.py               # 桌面版 Tkinter 界面
+├── web/                    # Web / Docker 版
+│   ├── server.py           # 标准库 HTTP 服务 + JSON API
+│   ├── templates/index.html
+│   └── static/             # app.css / app.js / icon.png
+├── Dockerfile              # 镜像定义（python:3.12-slim + lxml）
+├── docker-compose.yml
 ├── assets/icon.ico
 ├── check_data.py           # 命令行查看抓取结果
 ├── build.py                # 单文件打包
 └── build_onedir.py         # 便携版打包
 ```
+
+Web 版与桌面版共用 `goldpricer` 里的全部数据逻辑，只有 `ui.py` / `chart.py` 是桌面专用；
+`web/` 用 Python 标准库起 HTTP 服务，第三方依赖只有 `lxml`，所以镜像很小、路由器上构建也快。
+
+运行数据目录默认跟随系统（Windows 是 `%LOCALAPPDATA%\DragonNestGoldPrice`），
+容器里通过环境变量 `GOLDPRICER_DATA_DIR=/data` 指定。
 
 ## 常见问题
 

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>龙之谷金币查价器 · 龙之谷怀旧服</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="logo"><span>金</span></div>
+        <div class="brand-text">
+          <div class="title-row">
+            <h1>龙之谷金币查价器</h1>
+            <span class="chip">怀旧服</span>
+          </div>
+          <div class="subtitle">怀旧大区 / 神圣天堂&nbsp;&nbsp;·&nbsp;&nbsp;游戏币收货商家实时比价</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="status">
+          <i class="dot" id="dot"></i>
+          <span id="statusText">准备就绪</span>
+        </div>
+        <button class="btn-fetch" id="fetchBtn" type="button">获取最新价格</button>
+      </div>
+    </div>
+  </header>
+  <div class="header-divider"></div>
+
+  <main class="content">
+
+    <section class="summary" id="summary">
+      <div class="sum-col sum-left">
+        <div class="sum-head">
+          <span>当前最高到手单价（按服务器分组）</span>
+          <span class="badge-gold" id="bestBadge">最优</span>
+        </div>
+        <div class="sum-row">
+          <span class="region region-cn">国服怀旧</span>
+          <span class="big-price" id="cnPrice">—</span>
+          <span class="unit">元/金</span>
+        </div>
+        <div class="sum-platform" id="cnPlatform">等待获取报价</div>
+        <div class="sum-row">
+          <span class="region region-tw">港澳台LIVE</span>
+          <span class="big-price" id="twPrice">—</span>
+          <span class="unit">元/金</span>
+        </div>
+        <div class="sum-platform" id="twPlatform">—</div>
+      </div>
+
+      <div class="vline"></div>
+
+      <div class="sum-col sum-mid">
+        <div class="sum-head"><span>出售金币，按各自最高折算</span></div>
+        <div class="amount-row">
+          <input id="amount" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" value="10000">
+          <span class="unit-unit">金</span>
+        </div>
+        <div class="calc-row">
+          <span class="region region-cn">国服</span>
+          <span class="calc-val" id="calcCn">≈ —</span>
+        </div>
+        <div class="calc-row">
+          <span class="region region-tw">港澳台</span>
+          <span class="calc-val" id="calcTw">≈ —</span>
+        </div>
+        <div class="calc-hint" id="calcHint"></div>
+      </div>
+
+      <div class="vline"></div>
+
+      <div class="sum-col sum-right">
+        <div class="sum-head"><span>组内价差参考</span></div>
+        <div class="gap-row">
+          <span class="region region-cn">国服</span>
+          <b class="gap-val" id="cnDelta">—</b>
+        </div>
+        <div class="gap-money" id="cnMoney">每万金多赚 —</div>
+        <div class="gap-row">
+          <span class="region region-tw">港澳台</span>
+          <b class="gap-val" id="twDelta">—</b>
+        </div>
+        <div class="gap-money" id="twMoney">每万金多赚 —</div>
+        <div class="gap-note">同一服务器分组内比较</div>
+      </div>
+    </section>
+
+    <section class="cards" id="cards"></section>
+
+    <section class="conclusion">
+      <div class="conclusion-title">比价结论</div>
+      <div class="conclusion-text" id="conclusionText">获取报价后，这里会给出更划算的平台建议。</div>
+    </section>
+
+    <div class="tip">小提示：按「元/金」比较，数值越高，卖出同样金币到手越多；「1元=N金」则是越低越划算。</div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="foot-left" id="lastUpdate">上次更新：—</span>
+      <span class="foot-left foot-dim">&nbsp;&nbsp;·&nbsp;&nbsp;F5 刷新</span>
+      <label class="auto-refresh">
+        <input type="checkbox" id="autoChk" checked>
+        <span id="autoLabel">每 60 秒自动刷新</span>
+      </label>
+      <span class="foot-right foot-dim" id="disclaimer">数据来自各平台公开收货页，实际成交价以平台下单页为准。</span>
+      <span class="foot-right foot-dim" id="version">v1.4.0</span>
+    </div>
+  </footer>
+
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
