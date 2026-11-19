@@ -52,6 +52,8 @@
 
 容器跑在路由器上，局域网用浏览器访问，界面与桌面版是同一套深色金色样式；抓取在服务端后台按 60 秒周期跑，浏览器关掉也继续盯盘，手机/平板/其他电脑同时看同一份数据。
 
+![Web 版界面](docs/screenshot-web.png)
+
 ```sh
 # 把 app/ 下的 Dockerfile、goldpricer/、web/ 传到路由器后
 cd /root/dragonnest
