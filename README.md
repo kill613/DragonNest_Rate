@@ -58,12 +58,12 @@
 # 把 app/ 下的 Dockerfile、goldpricer/、web/ 传到路由器后
 cd /root/dragonnest
 docker build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-  -t dragonnest-goldpricer:1.4.0 .
+  -t dragonnest-goldpricer:1.5.0 .
 
 docker run -d --name goldpricer --restart unless-stopped \
   -p 8090:8090 -e TZ=Asia/Shanghai \
   -v /root/dragonnest/data:/data \
-  dragonnest-goldpricer:1.4.0
+  dragonnest-goldpricer:1.5.0
 ```
 
 浏览器访问 `http://<主路由 IP>:8090`。

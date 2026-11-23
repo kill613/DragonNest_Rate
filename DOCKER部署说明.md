@@ -74,7 +74,7 @@ cd /root/dragonnest
 # 国内网络建议换 pip 源，否则拉 PyPI 可能很慢
 docker build \
   --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-  -t dragonnest-goldpricer:1.4.0 .
+  -t dragonnest-goldpricer:1.5.0 .
 
 docker run -d \
   --name goldpricer \
@@ -83,7 +83,7 @@ docker run -d \
   -e TZ=Asia/Shanghai \
   -e GOLDPRICER_AUTO_SECONDS=60 \
   -v /root/dragonnest/data:/data \
-  dragonnest-goldpricer:1.4.0
+  dragonnest-goldpricer:1.5.0
 ```
 
 有 compose 插件的话更省事：
@@ -99,11 +99,11 @@ cd /root/dragonnest && docker compose up -d --build
 ```powershell
 # 1) 先看路由器架构：uname -m  →  aarch64 用 linux/arm64，x86_64 用 linux/amd64
 docker buildx build --platform linux/arm64 `
-  -t dragonnest-goldpricer:1.4.0 `
+  -t dragonnest-goldpricer:1.5.0 `
   "D:\Other\龙之谷金币查价器\app" --load
 
 # 2) 导出
-docker save dragonnest-goldpricer:1.4.0 -o D:\goldpricer-arm64.tar
+docker save dragonnest-goldpricer:1.5.0 -o D:\goldpricer-arm64.tar
 
 # 3) 传上去并导入
 scp D:\goldpricer-arm64.tar root@192.168.1.1:/tmp/
@@ -137,11 +137,11 @@ docker restart goldpricer          # 重启
 docker stop goldpricer && docker rm goldpricer   # 删除容器（数据在 /data 卷里，不会丢）
 
 # 更新代码后重新构建
-cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.4.0 . \
+cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.5.0 . \
   && docker stop goldpricer && docker rm goldpricer \
   && docker run -d --name goldpricer --restart unless-stopped \
      -p 8090:8090 -v /root/dragonnest/data:/data \
-     dragonnest-goldpricer:1.4.0
+     dragonnest-goldpricer:1.5.0
 ```
 
 **数据文件**（都在挂载的 `data` 目录里）：
@@ -225,7 +225,7 @@ docker exec goldpricer python -c "import urllib.request;print(urllib.request.url
 
 不通通常是 OpenWrt 上 docker 的 DNS/转发问题，可以：
 - 给 docker 配 DNS：`/etc/docker/daemon.json` 写 `{"dns":["223.5.5.5","119.29.29.29"]}` 后重启 dockerd
-- 或临时改用 host 网络：`docker run ... --network host dragonnest-goldpricer:1.4.0`（此时 `-p` 可不写，直接用 8090）
+- 或临时改用 host 网络：`docker run ... --network host dragonnest-goldpricer:1.5.0`（此时 `-p` 可不写，直接用 8090）
 
 **时间显示不对**
 确认启动参数里有 `-e TZ=Asia/Shanghai`。

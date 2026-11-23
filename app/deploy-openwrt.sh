@@ -12,7 +12,7 @@ set -e
 
 APP_DIR=$(cd "$(dirname "$0")" && pwd)
 NAME=goldpricer
-IMAGE=dragonnest-goldpricer:1.4.0
+IMAGE=dragonnest-goldpricer:1.5.0
 PORT=${PORT:-8090}
 DATA=${DATA:-$APP_DIR/data}
 
