@@ -2,6 +2,7 @@
 """程序入口。"""
 
 import ctypes
+import io
 import os
 import sys
 import tempfile
@@ -9,6 +10,13 @@ import tkinter as tk
 import traceback
 from datetime import datetime
 from pathlib import Path
+
+# --windowed 打包后 stdout/stderr 为 None，任何往它们写的库都会抛 AttributeError。
+# 必须在导入 goldpricer（进而导入 curl_cffi）之前兜住。
+if sys.stdout is None:
+    sys.stdout = io.StringIO()
+if sys.stderr is None:
+    sys.stderr = io.StringIO()
 
 
 def _log_path() -> Path:

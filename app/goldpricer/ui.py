@@ -17,7 +17,7 @@ from typing import Optional
 
 from . import config, storage
 from .chart import TrendChart
-from .fetchers import fetch_all
+from .fetchers import fetch_all, throttle_status
 from .history import HistoryStore
 from .models import (
     PlatformResult,
@@ -1375,21 +1375,30 @@ class PriceApp:
 
         if ok_count == total:
             if stale_count:
-                self._set_status(
-                    f"{ok_count}/{total} 平台已更新 · {stale_count} 家显示上次数据",
-                    config.ORANGE,
-                )
+                status_text = f"{ok_count}/{total} 平台已更新 · {stale_count} 家显示上次数据"
+                status_color = config.ORANGE
             else:
-                self._set_status(
-                    f"{ok_count}/{total} 平台更新成功 · {fmt_time(now)}", config.GREEN
-                )
+                status_text = f"{ok_count}/{total} 平台更新成功 · {fmt_time(now)}"
+                status_color = config.GREEN
         elif ok_count > 0:
             extra = f" · {stale_count} 家显示上次数据" if stale_count else ""
-            self._set_status(
-                f"部分平台失败（{ok_count}/{total} 成功）{extra}", config.ORANGE
-            )
+            status_text = f"部分平台失败（{ok_count}/{total} 成功）{extra}"
+            status_color = config.ORANGE
         else:
-            self._set_status("获取失败，请检查网络后重试", config.RED)
+            status_text = "获取失败，请检查网络后重试"
+            status_color = config.RED
+
+        # 处于退避冷却的平台本轮不会发请求，明确告诉用户要等多久，
+        # 否则点“获取最新价格”看起来像没反应。
+        paused = [
+            f"{config.PLATFORMS[key].get('short', key)} 约 {int(info['remain'] // 60) + 1} 分钟"
+            for key, info in throttle_status().items()
+            if info["reason"] and info["remain"] > 0
+        ]
+        if paused:
+            status_text = f"{status_text} · {'、'.join(paused)}后重试"
+            status_color = config.ORANGE
+        self._set_status(status_text, status_color)
 
         self._update_calc()
 
