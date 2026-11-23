@@ -4,7 +4,7 @@
 import os
 
 APP_NAME = "龙之谷金币查价器"
-APP_VERSION = "1.4.1"
+APP_VERSION = "1.5.0"
 
 GAME_NAME = "龙之谷怀旧服"
 AREA_NAME = "怀旧大区"
@@ -31,12 +31,12 @@ DD373_GAME_ID = "cbk5a5"
 DD373_AREA_ID = "bqufr0"
 DD373_SERVER_ID = "j8cdwa"
 
-# DD373 前置阿里云 WAF，访问过密会让出口 IP 进入「滑动验证」状态，
-# 纯 HTTP 客户端无法通过，只能靠降低频次 + 失败退避来避免触发。
+# DD373 前置阿里云 WAF。抓取已改用 curl_cffi 的 Chrome 指纹（这是能拿到真实
+# 页面的关键），但请求密度仍然不宜太高，失败后也要退避，避免被额外盯上。
 # 单位：秒；可用环境变量覆盖，桌面版不设置时使用下面的默认值。
-DD373_MIN_INTERVAL = int(os.getenv("GOLDPRICER_DD373_INTERVAL", "600"))
-DD373_COOLDOWN_BASE = int(os.getenv("GOLDPRICER_DD373_COOLDOWN", "900"))
-DD373_COOLDOWN_MAX = int(os.getenv("GOLDPRICER_DD373_COOLDOWN_MAX", "3600"))
+DD373_MIN_INTERVAL = int(os.getenv("GOLDPRICER_DD373_INTERVAL", "300"))
+DD373_COOLDOWN_BASE = int(os.getenv("GOLDPRICER_DD373_COOLDOWN", "600"))
+DD373_COOLDOWN_MAX = int(os.getenv("GOLDPRICER_DD373_COOLDOWN_MAX", "1800"))
 
 # 7881（国服怀旧 / 港澳台LIVE 同 gameId，不同 groupId/serverId）
 L7881_URL = (

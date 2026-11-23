@@ -139,7 +139,7 @@ app/
 │   ├── server.py           # 标准库 HTTP 服务 + JSON API
 │   ├── templates/index.html
 │   └── static/             # app.css / app.js / icon.png
-├── Dockerfile              # 镜像定义（python:3.12-slim + lxml）
+├── Dockerfile              # 镜像定义（python:3.12-slim + lxml + curl_cffi）
 ├── docker-compose.yml
 ├── assets/icon.ico
 ├── check_data.py           # 命令行查看抓取结果
@@ -148,7 +148,9 @@ app/
 ```
 
 Web 版与桌面版共用 `goldpricer` 里的全部数据逻辑，只有 `ui.py` / `chart.py` 是桌面专用；
-`web/` 用 Python 标准库起 HTTP 服务，第三方依赖只有 `lxml`，所以镜像很小、路由器上构建也快。
+`web/` 用 Python 标准库起 HTTP 服务，第三方依赖只有 `lxml` 和 `curl_cffi`，所以镜像不大、路由器上构建也快。
+
+`curl_cffi` 只给 DD373 用：该平台前置阿里云 WAF，会按 TLS 指纹把 Python 客户端判定为机器人并下发滑动验证，换成 Chrome 指纹才能拿到真实页面。7881 和 G买卖 用标准库即可。
 
 运行数据目录默认跟随系统（Windows 是 `%LOCALAPPDATA%\DragonNestGoldPrice`），
 容器里通过环境变量 `GOLDPRICER_DATA_DIR=/data` 指定。

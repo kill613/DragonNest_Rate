@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import os
 import re
 import socket
 import threading
@@ -25,6 +26,13 @@ from lxml import html as lxml_html
 
 from . import config
 from .models import Offer, PlatformResult
+
+# curl_cffi 用来复刻真实浏览器的 TLS/HTTP2 指纹。
+# 没装时退回标准库，此时 DD373 只会拿到 WAF 的滑动验证页。
+try:
+    from curl_cffi import requests as _cffi_requests
+except Exception:  # noqa: BLE001
+    _cffi_requests = None
 
 
 UA = (
@@ -201,6 +209,118 @@ class HttpSession:
         return self._read(Request(url, data=body, headers=headers, method="POST"), timeout)
 
 
+_CA_CACHE: dict[str, object] = {}
+
+
+def _ca_bundle():
+    """给 libcurl 用的 CA 路径。
+
+    Windows 下如果项目路径含中文，libcurl 打不开 certifi 的 cacert.pem
+    （报 error adding trust anchors），所以先判断路径是否为纯 ASCII，
+    不是就复制一份到纯 ASCII 的临时目录。
+    """
+    if "path" in _CA_CACHE:
+        return _CA_CACHE["path"]
+    _CA_CACHE["path"] = True
+    try:
+        import shutil
+        import tempfile
+
+        import certifi
+
+        source = certifi.where()
+        if source.isascii() and os.path.exists(source):
+            _CA_CACHE["path"] = source
+            return source
+        for base in ("/tmp", tempfile.gettempdir(), r"C:\Temp", "/var/tmp"):
+            if not base.isascii() or not os.path.isdir(base):
+                continue
+            target = os.path.join(base, "goldpricer_cacert.pem")
+            try:
+                if not os.path.exists(target):
+                    shutil.copyfile(source, target)
+                _CA_CACHE["path"] = target
+                return target
+            except OSError:
+                continue
+    except Exception:  # noqa: BLE001 - 任何异常都退回 libcurl 默认行为
+        pass
+    return _CA_CACHE["path"]
+
+
+class CffiSession:
+    """用 curl_cffi 复刻真实浏览器的 TLS/HTTP2 指纹。
+
+    DD373 前置阿里云 WAF，会按 TLS 指纹把 Python/.NET 客户端判定为机器人，
+    同样的 IP 用浏览器能正常打开，用 urllib 只会拿到「滑动验证」页。
+    换成 Chrome 指纹后即可正常返回商品列表。
+    """
+
+    def __init__(self, timeout: int = 22, impersonate: str = "chrome"):
+        self.timeout = timeout
+        self._session = _cffi_requests.Session(
+            impersonate=impersonate,
+            timeout=timeout,
+            verify=_ca_bundle(),
+        )
+
+    def close(self) -> None:
+        try:
+            self._session.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _do(self, method: str, url: str, headers: dict, timeout, **kwargs) -> str:
+        try:
+            response = self._session.request(
+                method, url, headers=headers, timeout=timeout or self.timeout, **kwargs
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise FetchError(f"连接失败：{exc}") from exc
+        if response.status_code >= 400:
+            raise FetchError(f"平台返回 HTTP {response.status_code}")
+        return response.text
+
+    def get(
+        self,
+        url: str,
+        referer: Optional[str] = None,
+        timeout: Optional[int] = None,
+        accept: str = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    ) -> str:
+        headers = {
+            "Accept": accept,
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.6",
+        }
+        if referer:
+            headers["Referer"] = referer
+        return self._do("GET", url, headers, timeout)
+
+    def post_json(
+        self,
+        url: str,
+        payload,
+        referer: Optional[str] = None,
+        timeout: Optional[int] = None,
+    ) -> str:
+        headers = {
+            "Accept": "application/json,text/plain,*/*;q=0.8",
+            "Content-Type": "application/json;charset=UTF-8",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.6",
+        }
+        if referer:
+            headers["Referer"] = referer
+        body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        return self._do("POST", url, headers, timeout, data=body)
+
+
+def _browser_session():
+    """DD373 用浏览器指纹会话，其余平台仍用标准库（一直很稳定）。"""
+    if _cffi_requests is not None:
+        return CffiSession()
+    return HttpSession()
+
+
 class BaseFetcher:
     key = ""
     name = ""
@@ -251,12 +371,16 @@ class Dd373Fetcher(BaseFetcher):
     max_attempts = 1
 
     def __init__(self):
-        self._session = HttpSession()
+        self._session = _browser_session()
         self._warmed = False
         self._lock = threading.Lock()
 
     def _reset(self):
-        self._session = HttpSession()
+        try:
+            self._session.close()
+        except Exception:  # noqa: BLE001
+            pass
+        self._session = _browser_session()
         self._warmed = False
 
     def _warm(self):

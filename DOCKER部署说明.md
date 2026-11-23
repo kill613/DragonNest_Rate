@@ -163,35 +163,48 @@ cd /root/dragonnest && docker build -t dragonnest-goldpricer:1.4.0 . \
 | --- | --- | --- |
 | `GOLDPRICER_PORT` | `8090` | 容器内监听端口，改这里要同步改 `-p` 的容器侧端口 |
 | `GOLDPRICER_AUTO_SECONDS` | `60` | 后台抓取周期（秒），页面底部文案会跟着变 |
-| `GOLDPRICER_DD373_INTERVAL` | `600` | DD373 成功抓取后的最小间隔（秒），见下方说明 |
-| `GOLDPRICER_DD373_COOLDOWN` | `900` | DD373 首次失败后的冷却（秒），之后每次翻倍 |
-| `GOLDPRICER_DD373_COOLDOWN_MAX` | `3600` | DD373 冷却上限（秒），达到后不再翻倍 |
+| `GOLDPRICER_DD373_INTERVAL` | `300` | DD373 成功抓取后的最小间隔（秒），见下方说明 |
+| `GOLDPRICER_DD373_COOLDOWN` | `600` | DD373 首次失败后的冷却（秒），之后每次翻倍 |
+| `GOLDPRICER_DD373_COOLDOWN_MAX` | `1800` | DD373 冷却上限（秒），达到后不再翻倍 |
 | `GOLDPRICER_DATA_DIR` | `/data` | 数据目录，改了要同步改卷挂载 |
 | `TZ` | `Asia/Shanghai` | 容器时区 |
 
 端口被占用时只改宿主机侧即可，例如 `-p 8095:8090`，访问就变成 `http://192.168.1.1:8090`。
 
-### 关于 DD373 的抓取节奏
+### 关于 DD373 的抓取（重要）
 
-DD373 站点前面挂了阿里云 WAF。如果按 60 秒一轮全速抓，一天会产生上千次请求，出口 IP 很快会进入“滑动验证”状态——这种验证是拖动滑块，纯 HTTP 客户端过不去，程序只能一直失败。
+DD373 前置阿里云 WAF，它按 **TLS 指纹**识别客户端。同一台电脑、同一个 IP，用浏览器打开列表页完全正常，但 Python 标准库、.NET、curl 这些非浏览器 TLS 栈都会被判定成机器人，返回一个约 1.2 万字节的“滑动验证”页而不是商品列表。
 
-所以 DD373 两个平台单独走慢节奏：
+**这不是 IP 被封，也不是抓取频率太高**——把频率降到 10 分钟一次依然失败，换浏览器指纹的库立刻成功。
 
-- 默认每 10 分钟抓一次（`GOLDPRICER_DD373_INTERVAL=600`），7881 和 G买卖 仍然每 60 秒
-- 失败后自动退避：15 分钟 → 30 分钟 → 60 分钟，成功后计时清零
+所以 DD373 的抓取走 `curl_cffi`，它复刻 Chrome 的 TLS / HTTP2 指纹（`impersonate="chrome"`）。7881 和 G买卖 一直很稳定，仍用标准库。
+
+另外还保留了节奏保护，避免请求密度引来额外风控：
+
+- 默认每 5 分钟抓一次（`GOLDPRICER_DD373_INTERVAL=300`），7881 和 G买卖 仍 60 秒
+- 失败后自动退避：10 分钟 → 20 分钟 → 30 分钟，成功后计时清零
 - 退避期间**完全不发请求**，卡片保留上次价格并提示“约 N 分钟后自动重试”
 
-页面上的 DD373 数据最多会比 7881 慢 10 分钟，这是刻意换来的稳定性。如果确认没被 WAF 盯上，可以把间隔调小：
+代价是镜像多约 14MB（curl_cffi 自带 libcurl），页面上的 DD373 数据最多比 7881 慢 5 分钟。ARM64 有现成的预编译包，路由器上构建不需要编译工具链。
+
+DD373 显示失败时，先在容器里跑一次自检：
 
 ```sh
-docker run ... -e GOLDPRICER_DD373_INTERVAL=180 ...
+docker exec goldpricer python -c "
+from curl_cffi import requests
+r = requests.get('https://www.dd373.com/', impersonate='chrome', timeout=20)
+print(r.status_code, len(r.text))
+"
 ```
 
-如果 DD373 长期显示“触发人机验证”，说明出口 IP 已被标记，可以：
+返回 200 且长度十万级是正常的；如果只有一万多字节，说明又回到了验证页，可以调大间隔或换公网 IP 再试。
 
-1. 停掉容器半小时以上，别让它继续请求，等 WAF 释放
-2. 在浏览器里手动打开一次 DD373 列表页，确认能正常显示（会要求拖一次滑块）
-3. 之后用上面调大间隔的方式再启动
+如果想让 DD373 抓得更勤：
+
+```sh
+docker run ... -e GOLDPRICER_DD373_INTERVAL=120 ...
+```
+
 
 
 ---

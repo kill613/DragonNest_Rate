@@ -13,9 +13,10 @@ ENV PYTHONUNBUFFERED=1 \
     GOLDPRICER_PORT=8090 \
     GOLDPRICER_AUTO_SECONDS=60
 
-# 时区数据：容器默认 UTC，不装 tzdata 的话页面上「抓取于 11:58:04」会变成 UTC 时间
+# 时区数据 + CA 证书：容器默认 UTC，不装 tzdata 的话页面上「抓取于 11:58:04」会变成 UTC 时间；
+# curl_cffi 走 libcurl，需要系统根证书来做 TLS 校验
 RUN apt-get update \
- && apt-get install -y --no-install-recommends tzdata \
+ && apt-get install -y --no-install-recommends tzdata ca-certificates \
  && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
  && echo "$TZ" > /etc/timezone \
  && rm -rf /var/lib/apt/lists/*
@@ -25,8 +26,10 @@ WORKDIR /app
 # 允许换成国内源：docker build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple .
 ARG PIP_INDEX_URL=https://pypi.org/simple
 
-# 只装抓取解析要用的 lxml（托盘用的 pystray / Pillow 是桌面版专用，容器里不需要）
-RUN pip install --no-cache-dir -i "$PIP_INDEX_URL" "lxml==6.1.3"
+# lxml 解析页面；curl_cffi 复刻 Chrome 的 TLS 指纹——
+# DD373 的阿里云 WAF 会按 TLS 指纹拦 Python/.NET 客户端，用标准库永远只能拿到验证页。
+# 两者在 aarch64 上都有 manylinux 预编译 wheel，路由器构建无需编译工具链。
+RUN pip install --no-cache-dir -i "$PIP_INDEX_URL" "lxml==6.1.3" "curl_cffi==0.17.0"
 
 # 只拷贝服务端真正需要的模块（ui.py / chart.py 是 tkinter 桌面版专用，容器里用不到）
 COPY goldpricer ./goldpricer
